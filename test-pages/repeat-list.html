@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Repeated-structure fixture (lists, feed, card grid)</title>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 24px; color: #1b1b1b; }
+    h1 { font-size: 19px; }
+    h2 { font-size: 15px; margin-top: 34px; }
+    p { color: #555; max-width: 64ch; }
+    a { color: #205057; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* 1. GitHub-issues-like list: semantic <ul>/<li>, ragged optional fields. */
+    .issues { list-style: none; padding: 0; max-width: 640px; border: 1px solid #d0d7de; border-radius: 8px; }
+    .issues li { display: flex; gap: 10px; align-items: baseline; padding: 10px 14px; border-bottom: 1px solid #eaeef2; }
+    .issues li:last-child { border-bottom: 0; }
+    .issues .id { color: #888; font-variant-numeric: tabular-nums; width: 46px; }
+    .issues .title { font-weight: 600; flex: 1; }
+    .issues .label { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: #ddf4ff; color: #0969da; }
+    .issues .who { color: #666; font-size: 12px; }
+    .issues time { color: #888; font-size: 12px; }
+
+    /* 2. ARIA feed of articles — no <ul>, role-driven. */
+    .feed article { border: 1px solid #e3e3e3; border-radius: 8px; padding: 12px 14px; margin: 8px 0; max-width: 640px; }
+    .feed h3 { margin: 0 0 4px; font-size: 14px; }
+    .feed .meta { color: #777; font-size: 12px; }
+
+    /* 3. News card grid built from plain <div>s (no semantics; Tier-2 only). */
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; max-width: 760px; }
+    .card { border: 1px solid #e3e3e3; border-radius: 10px; overflow: hidden; }
+    .card .thumb { height: 70px; background: linear-gradient(135deg, #308e98, #18474c); }
+    .card .pad { padding: 10px 12px; }
+    .card .kicker { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #308e98; }
+    .card .headline { font-weight: 600; margin: 3px 0; }
+    .card .byline { color: #777; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Repeated-structure fixtures</h1>
+  <p>
+    Start a region selection (<kbd>Alt+Shift+R</kbd>), switch the toolbar to
+    <strong>Table</strong> mode, and drag a rectangle over any block below.
+    None of these are real <code>&lt;table&gt;</code>s, so Table mode detects
+    the repeating structure, tints the records it will capture, and copies them
+    as a table.
+  </p>
+
+  <h2>1. Issue list — semantic &lt;ul&gt;/&lt;li&gt; with optional fields</h2>
+  <ul class="issues" aria-label="Open issues">
+    <li>
+      <span class="id">#412</span>
+      <a class="title" href="/issues/412">Table copy drops merged header cells</a>
+      <span class="label">bug</span>
+      <span class="who">erika</span>
+      <time datetime="2026-05-30">May 30</time>
+    </li>
+    <li>
+      <span class="id">#410</span>
+      <a class="title" href="/issues/410">Add Markdown export for lists</a>
+      <span class="who">joe</span>
+      <time datetime="2026-05-28">May 28</time>
+    </li>
+    <li>
+      <span class="id">#407</span>
+      <a class="title" href="/issues/407">Region select misses sticky rows</a>
+      <span class="label">bug</span>
+      <span class="who">sam</span>
+      <time datetime="2026-05-25">May 25</time>
+    </li>
+    <li>
+      <span class="id">#401</span>
+      <a class="title" href="/issues/401">Docs: keyboard shortcuts table</a>
+      <span class="label">docs</span>
+      <span class="who">priya</span>
+      <time datetime="2026-05-21">May 21</time>
+    </li>
+  </ul>
+
+  <h2>2. Article feed — ARIA role="feed" / role="article"</h2>
+  <div class="feed" role="feed" aria-label="Latest articles">
+    <article role="article">
+      <h3><a href="/a/ocr-tips">Five OCR tricks for messy screenshots</a></h3>
+      <div class="meta">Tools · 6 min read · Jun 10, 2026</div>
+    </article>
+    <article role="article">
+      <h3><a href="/a/clipboard">How the clipboard really works</a></h3>
+      <div class="meta">Deep dive · 11 min read · Jun 7, 2026</div>
+    </article>
+    <article role="article">
+      <h3><a href="/a/tables">Copying web tables without losing your mind</a></h3>
+      <div class="meta">How-to · 4 min read · Jun 3, 2026</div>
+    </article>
+  </div>
+
+  <h2>3. News cards — plain &lt;div&gt; soup (structural detection only)</h2>
+  <div class="cards">
+    <div class="card">
+      <div class="thumb"></div>
+      <div class="pad">
+        <div class="kicker">Hardware</div>
+        <div class="headline"><a href="/n/keyboards">The keyboard renaissance</a></div>
+        <div class="byline">by Erika Tran</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="thumb"></div>
+      <div class="pad">
+        <div class="kicker">Software</div>
+        <div class="headline"><a href="/n/extensions">Browser extensions grow up</a></div>
+        <div class="byline">by Joe Finney</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="thumb"></div>
+      <div class="pad">
+        <div class="kicker">Design</div>
+        <div class="headline"><a href="/n/contrast">Contrast is a feature</a></div>
+        <div class="byline">by Sam Ortiz</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="thumb"></div>
+      <div class="pad">
+        <div class="kicker">AI</div>
+        <div class="headline"><a href="/n/parsing">Teaching machines to read pages</a></div>
+        <div class="byline">by Priya Nair</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="thumb"></div>
+      <div class="pad">
+        <div class="kicker">Privacy</div>
+        <div class="headline"><a href="/n/local">Why local-first wins</a></div>
+        <div class="byline">by Dana Lee</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="thumb"></div>
+      <div class="pad">
+        <div class="kicker">Web</div>
+        <div class="headline"><a href="/n/semantics">The case for semantic HTML</a></div>
+        <div class="byline">by Marco Bianchi</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

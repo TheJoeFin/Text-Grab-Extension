@@ -551,7 +551,10 @@
         }
       }
       if (!best) {
-        textHits(region, out);
+        // No real <table> here — try a repeating structure (a <ul>/<ol> or a
+        // run of cards). Reveal the records the region touches so the tint
+        // signals the list will be captured; fall back to raw text rects.
+        if (!repeatHits(region, out)) textHits(region, out);
         return;
       }
 
@@ -589,6 +592,28 @@
         if (page) out.push(page);
         if (out.length >= MAX_HITS) return;
       }
+    }
+
+    // Repeating structures (lists, card runs) the region intersects. Detection
+    // scans the whole document, so it is run once per selection session and
+    // cached; the per-frame picking against the cached sets is cheap geometry.
+    function detectedRecordSets() {
+      if (!TG.repeatDetect) return [];
+      return (session._recordSets ??= TG.repeatDetect.detectRecordSets(document.body));
+    }
+
+    // Reveal each record the region touches (whole box, clamped to the page),
+    // mirroring how table cells are revealed in full. Returns false when no
+    // list is involved so the caller can fall back to text rects.
+    function repeatHits(region, out) {
+      const picked = TG.repeatDetect?.pickRecordSetInRegion(detectedRecordSets(), region);
+      if (!picked) return false;
+      for (const item of picked.items) {
+        const page = clampToPage(item.getBoundingClientRect());
+        if (page) out.push(page);
+        if (out.length >= MAX_HITS) break;
+      }
+      return out.length > 0;
     }
 
     function computeHits() {

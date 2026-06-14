@@ -241,7 +241,8 @@
     // there, so don't start a selection on the native viewer.
     if (isPdfViewer()) return openInPdfViewer(requestedMode);
 
-    await ensure(['content/region-select.js']);
+    // repeat-detect rides along so Table mode can tint repeating lists/cards.
+    await ensure(['lib/repeat-detect.js', 'content/region-select.js']);
     const { REGION_MODE, isWindows } = await constants();
     const settings = await settingsApi.getSettings();
     // Screenshot mode and the "Send to Text Grab" toggle only do anything on
@@ -429,6 +430,7 @@
     await ensure([
       'lib/table-to-grid.js',
       'content/table-detect.js',
+      'lib/repeat-detect.js',
       'lib/formats.js',
       'lib/clipboard.js',
       'lib/region-grid.js',
@@ -450,23 +452,37 @@
       }
     }
 
+    // Capture precedence: a real <table> first, then a repeating structure
+    // (a <ul>/<ol> or run of cards) whose records the region covers, and only
+    // then raw layout reconstruction from text bounding boxes.
     let grid;
-    let rowCount;
-    let colCount;
-    let inferred = false;
+    let rowCount = 0;
+    let colCount = 0;
+    let source = '';
     if (best) {
       ({ grid, rowCount, colCount } = TG.tableGrid.tableToGrid(best, { clipRect: rect }));
     }
-    // No <table> here, or the region missed all its cells: reconstruct a grid
-    // from the layout (bounding boxes of the text inside the region).
-    if (!best || rowCount === 0) {
+    if (rowCount === 0) {
+      const sets = TG.repeatDetect.detectRecordSets(document.body);
+      const picked = TG.repeatDetect.pickRecordSetInRegion(sets, rect);
+      if (picked) {
+        // Copy each record the region touches as a row; no synthetic header.
+        ({ grid, rowCount, colCount } = TG.repeatDetect.recordSetToGrid(
+          { ...picked.set, items: picked.items },
+          { headerMode: 'none' }
+        ));
+        if (colCount > 0) source = ' from list';
+        else rowCount = 0;
+      }
+    }
+    if (rowCount === 0) {
       const result = TG.regionGrid.inferGridInRegion(rect);
       if (!result) {
         await toast('No table or table-like layout in the region', 'error');
         return;
       }
       ({ grid, rowCount, colCount } = result);
-      inferred = true;
+      source = ' from layout';
     }
 
     const settings = await settingsApi.getSettings();
@@ -478,7 +494,6 @@
       await toast('Copy failed', 'error');
       return;
     }
-    const source = inferred ? ' from layout' : '';
     if (sendToTextGrab) {
       chrome.runtime.sendMessage({ type: MSG.LAUNCH_TEXT_GRAB, uri: TEXT_GRAB_URI.PASTE_SPREADSHEET });
       await toast(`Table region (${rowCount} x ${colCount})${source} sent to Text Grab`, 'success');

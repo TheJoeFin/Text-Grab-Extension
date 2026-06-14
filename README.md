@@ -31,13 +31,23 @@ confirms). Three modes:
   intersect the region, written to the clipboard as both a real HTML table
   and tab-separated text, so it pastes as a table into Excel, Google
   Sheets, LibreOffice, or Text Grab's spreadsheet mode — merged
-  (colspan/rowspan) cells included. When the region contains no `<table>`
-  element, the mode falls back to reconstructing a grid from the page
-  *layout*: it reads the bounding boxes of the text inside the region,
-  groups them into rows and columns by position, and emits that as a table
-  (handy for CSS grid/flex "tables" built from `<div>`s). On a **PDF** the same
-  reconstruction runs on the rendered text layer in the pdf.js viewer (see
-  [PDF support](#pdf-support)).
+  (colspan/rowspan) cells included. The shade tints exactly what will be
+  captured. When the region holds no `<table>`, the mode tries two fallbacks
+  in order:
+  1. **Repeating structures** — a `<ul>`/`<ol>`, an ARIA `role="list"`/`feed`/
+     `table`/`grid`, or a run of structurally similar `<div>` cards (the
+     classic web "data record extraction" problem). Each repeated block the
+     region touches becomes a row, and the fields inside it are aligned into
+     columns by their position within the block, so ragged records (a list
+     item missing one field) still line up with empty cells. The records that
+     will be captured are tinted, so it's obvious the list was recognized.
+  2. **Raw layout** — if it isn't a repeating structure either, it reconstructs
+     a grid from the page *layout*: the bounding boxes of the text inside the
+     region, grouped into rows and columns by position (handy for CSS grid/flex
+     "tables" built from `<div>`s).
+
+  On a **PDF** the same fallbacks run on the rendered text layer in the pdf.js
+  viewer (see [PDF support](#pdf-support)).
 
 For the **Direct Text** and **Table** modes the toolbar shows a
 **Send to Text Grab** toggle. With it on, the result is still copied to the
@@ -185,6 +195,9 @@ that site in the future.
   - `tall-page.html` — ~30,000 px page exercising the canvas downscale path
   - `layout-table.html` — CSS grid / flex "tables" with no `<table>`
     element, for the Table-mode layout-reconstruction fallback
+  - `repeat-list.html` — a semantic issue list, an ARIA article feed, and a
+    plain-`<div>` card grid, for Table mode's repeating-structure detection
+    (`lib/repeat-detect.js`)
 
 ## Known limitations (v1)
 
