@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Very tall page capture fixture</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    .band {
+      height: 600px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <script>
+    // ~30,000px tall page to exercise the canvas-cap / downscale path.
+    const colors = ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'];
+    for (let i = 0; i < 50; i++) {
+      const div = document.createElement('div');
+      div.className = 'band';
+      div.style.background = colors[i % colors.length];
+      div.textContent = 'Band ' + (i + 1) + ' of 50';
+      document.body.append(div);
+    }
+  </script>
+</body>
+</html>

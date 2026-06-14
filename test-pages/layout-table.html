@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Layout (non-&lt;table&gt;) grid fixture</title>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 24px; }
+    h1 { font-size: 18px; }
+    p { color: #555; max-width: 60ch; }
+
+    /* A "table" made entirely of CSS grid — no <table>, <tr>, or <td>. */
+    .grid {
+      display: grid;
+      grid-template-columns: 160px 120px 100px 90px;
+      gap: 0;
+      width: max-content;
+      border: 1px solid #888;
+    }
+    .grid > div {
+      padding: 6px 12px;
+      border-right: 1px solid #ccc;
+      border-bottom: 1px solid #ccc;
+    }
+    .grid .head { font-weight: 600; background: #f0f0f0; }
+
+    /* A second one built from flex rows of <span>s, right-aligned numbers. */
+    .rows { margin-top: 32px; width: max-content; border: 1px solid #888; }
+    .row { display: flex; }
+    .row > span { padding: 6px 12px; border-bottom: 1px solid #ccc; }
+    .row .name { width: 200px; }
+    .row .qty { width: 90px; text-align: right; }
+    .row .price { width: 110px; text-align: right; }
+    .row.head span { font-weight: 600; background: #f0f0f0; }
+  </style>
+</head>
+<body>
+  <h1>Layout grids (no &lt;table&gt; elements)</h1>
+  <p>
+    Select-region → <strong>Table</strong> over either grid below. There is no
+    real <code>&lt;table&gt;</code>, so the extension reconstructs columns and
+    rows from the elements' bounding boxes.
+  </p>
+
+  <div class="grid">
+    <div class="head">Region</div>
+    <div class="head">Revenue</div>
+    <div class="head">Cost</div>
+    <div class="head">Margin</div>
+
+    <div>North</div><div>$1,200</div><div>$800</div><div>33%</div>
+    <div>South</div><div>$980</div><div>$610</div><div>38%</div>
+    <div>East</div><div>$1,540</div><div>$1,100</div><div>29%</div>
+    <div>West</div><div>$2,010</div><div>$1,250</div><div>38%</div>
+  </div>
+
+  <div class="rows">
+    <div class="row head">
+      <span class="name">Product</span>
+      <span class="qty">Qty</span>
+      <span class="price">Unit price</span>
+    </div>
+    <div class="row">
+      <span class="name">Mechanical keyboard</span>
+      <span class="qty">3</span>
+      <span class="price">$89.00</span>
+    </div>
+    <div class="row">
+      <span class="name">USB-C hub</span>
+      <span class="qty">12</span>
+      <span class="price">$24.50</span>
+    </div>
+    <div class="row">
+      <span class="name">Monitor arm</span>
+      <span class="qty">5</span>
+      <span class="price">$130.00</span>
+    </div>
+  </div>
+</body>
+</html>

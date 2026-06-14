@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "Text Grab Extension",
+  "version": "0.2.0",
+  "description": "Copy tables as tables, clean text, Markdown, links, and full-page captures — with handoff to the Text Grab Windows app.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "contextMenus",
+    "activeTab",
+    "scripting",
+    "storage",
+    "clipboardWrite",
+    "downloads"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Select region (screenshot, text, or table)",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_page": "options/options.html",
+  "commands": {
+    "select-region": {
+      "suggested_key": { "default": "Alt+Shift+R" },
+      "description": "Select a region (screenshot, text, or table)"
+    }
+  }
+}

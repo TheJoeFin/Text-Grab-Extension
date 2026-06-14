@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Text Grab — PDF</title>
+    <link rel="stylesheet" href="viewer.css" />
+  </head>
+  <body>
+    <!-- Text Grab's own pdf.js viewer. The PDF is rendered here, in our own
+         extension origin, to a canvas plus a real DOM text layer per page. That
+         gives region selection an exact 1:1 mapping to the rendered content, so
+         text/table grabbing reuses the normal DOM paths (lib/region-text.js,
+         lib/region-grid.js) with no screenshot registration guesswork. -->
+    <header id="toolbar">
+      <span id="title">PDF</span>
+      <span id="status"></span>
+      <button id="select-region" type="button">Select region</button>
+    </header>
+    <main id="pages" aria-label="PDF pages"></main>
+
+    <!-- Shared TG.* modules (classic scripts, register on globalThis.__TGX).
+         Loaded before the module below so they are ready when it runs. -->
+    <script src="../content/overlay.js"></script>
+    <script src="../lib/clipboard.js"></script>
+    <script src="../lib/formats.js"></script>
+    <script src="../lib/region-grid.js"></script>
+    <script src="../content/capture-helper.js"></script>
+    <script src="../content/region-select.js"></script>
+
+    <script type="module" src="viewer.js"></script>
+  </body>
+</html>

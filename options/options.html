@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Text Grab Extension — Options</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px;
+      max-width: 560px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+    h1 { font-size: 18px; }
+    label {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      margin: 14px 0;
+      cursor: pointer;
+    }
+    input[type='checkbox'] { margin-top: 3px; }
+    .hint { color: light-dark(#666, #9a9a9a); font-size: 12.5px; }
+    #saved {
+      color: #308e98;
+      visibility: hidden;
+      font-size: 12.5px;
+    }
+    input[type='checkbox'] {
+      accent-color: #308e98;
+    }
+  </style>
+</head>
+<body>
+  <h1>Text Grab Extension options</h1>
+
+  <label>
+    <input type="checkbox" id="overlayEnabled" />
+    <span>
+      Show a copy button when hovering over tables
+      <div class="hint">A small "Copy table" button appears at the top-right corner of data tables.</div>
+    </span>
+  </label>
+
+  <label>
+    <input type="checkbox" id="flattenCellNewlines" />
+    <span>
+      Flatten line breaks inside table cells
+      <div class="hint">When on, multi-line cells are copied as a single line. When off, line breaks are kept using spreadsheet-style quoting.</div>
+    </span>
+  </label>
+
+  <label>
+    <input type="checkbox" id="sendToTextGrab" />
+    <span>
+      Show "Send to Text Grab" actions
+      <div class="hint">Requires the Text Grab app with the text-grab:// protocol registered.</div>
+    </span>
+  </label>
+
+  <p id="saved">Saved.</p>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

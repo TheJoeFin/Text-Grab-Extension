@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Nested table fixture</title>
+  <style>
+    table { border-collapse: collapse; margin: 8px 0; }
+    td, th { border: 1px solid #888; padding: 4px 10px; vertical-align: top; }
+  </style>
+</head>
+<body>
+  <h1>Nested table fixture</h1>
+
+  <table id="outer">
+    <tr>
+      <th>Item</th>
+      <th>Details</th>
+    </tr>
+    <tr>
+      <td>Widget A</td>
+      <td>
+        <table id="inner">
+          <tr><th>Spec</th><th>Value</th></tr>
+          <tr><td>Weight</td><td>2 kg</td></tr>
+          <tr><td>Color</td><td>Blue</td></tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td>Widget B</td>
+      <td>Plain text details</td>
+    </tr>
+  </table>
+
+  <p>Expected: copying the outer table yields 3 rows; the nested table's
+    text is flattened into the "Details" cell. Hovering the inner table
+    offers to copy it as its own 3x2 table.</p>
+
+  <h2>Layout table (should be ignored)</h2>
+  <table role="presentation">
+    <tr><td>nav</td><td>content</td></tr>
+    <tr><td>nav2</td><td>content2</td></tr>
+  </table>
+</body>
+</html>
