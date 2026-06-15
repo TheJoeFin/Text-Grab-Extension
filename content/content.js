@@ -241,8 +241,9 @@
     // there, so don't start a selection on the native viewer.
     if (isPdfViewer()) return openInPdfViewer(requestedMode);
 
-    // repeat-detect rides along so Table mode can tint repeating lists/cards.
-    await ensure(['lib/repeat-detect.js', 'content/region-select.js']);
+    // repeat-detect rides along so Table mode can tint repeating lists/cards;
+    // visibility lets the tint skip content scrolled out of overflow containers.
+    await ensure(['lib/visibility.js', 'lib/repeat-detect.js', 'content/region-select.js']);
     const { REGION_MODE, isWindows } = await constants();
     const settings = await settingsApi.getSettings();
     // Screenshot mode and the "Send to Text Grab" toggle only do anything on
@@ -343,7 +344,7 @@
   }
 
   async function regionTextCopy(rect, sendToTextGrab) {
-    await ensure(['lib/region-text.js', 'lib/clipboard.js']);
+    await ensure(['lib/visibility.js', 'lib/region-text.js', 'lib/clipboard.js']);
     const { MSG, TEXT_GRAB_URI } = await constants();
     const text = TG.regionText.extractTextInRegion(pageRectToViewport(rect));
     if (!text) {
@@ -428,6 +429,7 @@
 
   async function regionTableCopy(pageRect, sendToTextGrab) {
     await ensure([
+      'lib/visibility.js',
       'lib/table-to-grid.js',
       'content/table-detect.js',
       'lib/repeat-detect.js',

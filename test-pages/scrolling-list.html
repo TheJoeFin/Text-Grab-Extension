@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Scrolling-list fixture (overflow clipping)</title>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, sans-serif; margin: 24px; color: #1b1b1b; }
+    h1 { font-size: 19px; }
+    h2 { font-size: 15px; margin-top: 34px; }
+    p { color: #555; max-width: 64ch; }
+
+    /* A fixed-height list with its own scrollbar: only ~5 rows are visible,
+       but all 40 exist in the DOM with real (off-screen) bounding boxes. */
+    .scroller {
+      height: 180px;
+      overflow: auto;
+      max-width: 520px;
+      border: 1px solid #d0d7de;
+      border-radius: 8px;
+    }
+    .scroller ul { list-style: none; margin: 0; padding: 0; }
+    .scroller li { display: flex; gap: 10px; padding: 9px 14px; border-bottom: 1px solid #eaeef2; }
+    .scroller li:last-child { border-bottom: 0; }
+    .scroller .id { color: #888; font-variant-numeric: tabular-nums; width: 52px; }
+    .scroller .name { font-weight: 600; flex: 1; }
+    .scroller .val { color: #205057; }
+
+    /* A property panel clipped by overflow:hidden — rows past the box are
+       painted nowhere but still report geometric rects below it. */
+    .panel { height: 132px; overflow: hidden; max-width: 420px; border: 1px solid #e3e3e3; border-radius: 8px; }
+    .panel .row { display: flex; justify-content: space-between; padding: 8px 14px; border-bottom: 1px solid #f0f0f0; }
+    .panel .row .k { color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Scrolling-list fixtures</h1>
+  <p>
+    Start a region selection (<kbd>Alt+Shift+R</kbd>) and drag a rectangle that
+    covers a scrolling box AND the empty page below it. Only the rows actually
+    visible inside each box should be tinted and captured — rows scrolled (or
+    clipped) out of view must be left out, even though their off-screen boxes
+    sit under the rectangle.
+  </p>
+
+  <h2>1. List with its own scrollbar (overflow: auto)</h2>
+  <div class="scroller">
+    <ul id="rows"></ul>
+  </div>
+
+  <h2>2. Clipped property panel (overflow: hidden)</h2>
+  <div class="panel" id="panel"></div>
+
+  <script>
+    const rows = document.getElementById('rows');
+    for (let i = 1; i <= 40; i++) {
+      const li = document.createElement('li');
+      li.innerHTML =
+        `<span class="id">#${100 + i}</span>` +
+        `<span class="name">Setting number ${i}</span>` +
+        `<span class="val">${i % 2 ? 'Enabled' : 'Disabled'}</span>`;
+      rows.append(li);
+    }
+    const panel = document.getElementById('panel');
+    const props = [
+      ['Width', '1280 px'], ['Height', '720 px'], ['Format', 'PNG'],
+      ['Color depth', '24-bit'], ['DPI', '96'], ['Compression', 'Lossless'],
+      ['Created', '2026-06-14'], ['Author', 'Joe Finney'],
+    ];
+    for (const [k, v] of props) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `<span class="k">${k}</span><span class="v">${v}</span>`;
+      panel.append(row);
+    }
+  </script>
+</body>
+</html>

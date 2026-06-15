@@ -498,6 +498,13 @@
       return !!el?.closest?.('text-grab-extension-ui, text-grab-extension-region');
     }
 
+    // An element's on-screen rect, clipped to scrolling ancestors (null if it is
+    // scrolled/clipped out of view). Falls back to the raw box if the helper is
+    // somehow absent so the tint still renders something.
+    function visibleHitRect(el) {
+      return TG.visibility ? TG.visibility.visibleRect(el) : el.getBoundingClientRect();
+    }
+
     // Tint the visible text rects intersecting the region — matches
     // lib/region-text.js's text-node walk closely enough to preview it.
     function textHits(region, out) {
@@ -517,10 +524,14 @@
       });
       const range = document.createRange();
       for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const parent = node.parentElement;
         range.selectNodeContents(node);
         for (const r of range.getClientRects()) {
-          if (!hitIntersects(r, region)) continue;
-          const clip = clipToPage(r, region);
+          // Clip to scrolling ancestors so text scrolled out of an overflow
+          // container is not tinted (matching what capture will include).
+          const vis = TG.visibility ? TG.visibility.clipToScrollAncestors(r, parent) : r;
+          if (!vis || !hitIntersects(vis, region)) continue;
+          const clip = clipToPage(vis, region);
           if (clip) out.push(clip);
           if (out.length >= MAX_HITS) return;
         }
@@ -560,10 +571,12 @@
 
       const cells = [...best.querySelectorAll('th, td')].filter((c) => !isOurNode(c));
       // Pass 1: the pixel block spanned by the cells intersecting the region.
+      // Each cell's VISIBLE rect is used so cells scrolled out of a table body
+      // with its own scrollbar neither expand the block nor get revealed.
       let block = null;
       for (const cell of cells) {
-        const r = cell.getBoundingClientRect();
-        if (!hitIntersects(r, region)) continue;
+        const r = visibleHitRect(cell);
+        if (!r || !hitIntersects(r, region)) continue;
         block = block
           ? {
               left: Math.min(block.left, r.left),
@@ -586,8 +599,8 @@
         height: block.bottom - block.top,
       };
       for (const cell of cells) {
-        const r = cell.getBoundingClientRect();
-        if (!hitIntersects(r, blockRegion)) continue;
+        const r = visibleHitRect(cell);
+        if (!r || !hitIntersects(r, blockRegion)) continue;
         const page = clampToPage(r);
         if (page) out.push(page);
         if (out.length >= MAX_HITS) return;
@@ -609,7 +622,8 @@
       const picked = TG.repeatDetect?.pickRecordSetInRegion(detectedRecordSets(), region);
       if (!picked) return false;
       for (const item of picked.items) {
-        const page = clampToPage(item.getBoundingClientRect());
+        const vis = visibleHitRect(item);
+        const page = vis && clampToPage(vis);
         if (page) out.push(page);
         if (out.length >= MAX_HITS) break;
       }
