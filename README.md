@@ -49,6 +49,14 @@ confirms). Three modes:
   On a **PDF** the same fallbacks run on the rendered text layer in the pdf.js
   viewer (see [PDF support](#pdf-support)).
 
+  In **Table** mode, a small **Copy table** / **Copy list** button is also
+  pinned to every data table and repeating list on the page (above the shade,
+  so it stays clickable). Clicking one copies that *whole* structure in a single
+  click — no dragging a region — and closes the selection; it honors the **Send
+  to Text Grab** toggle just like a region copy. The buttons appear only in
+  Table mode (switching to Screenshot or Direct Text hides them), so they are
+  never part of what a region capture grabs.
+
 For the **Direct Text** and **Table** modes the toolbar shows a
 **Send to Text Grab** toggle. With it on, the result is still copied to the
 clipboard but Text Grab is also opened for further refinement — the Edit
@@ -108,13 +116,12 @@ their original bytes. The image is saved under `Downloads/TextGrab/`.
 
 ### Dormant capabilities
 
-The codebase also implements full-table copy (hover overlay),
-clean-text and Markdown selection copy, links/image extraction, and
-full-page stitched capture. These are intentionally not surfaced in the
-v0.2 launch UI (no popup, single context-menu item, single command) but
-remain message-reachable in `content/content.js` and
-`background/service-worker.js`, ready to be re-enabled. The hover overlay
-can be turned on from the options page.
+The codebase also implements full-table copy, clean-text and Markdown
+selection copy, links/image extraction, and full-page stitched capture.
+These are intentionally not surfaced in the v0.2 launch UI (no popup, single
+context-menu item, single command) but remain message-reachable in
+`content/content.js` and `background/service-worker.js`, ready to be
+re-enabled.
 
 ## Install (unpacked)
 

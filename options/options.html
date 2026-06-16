@@ -2,66 +2,245 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Text Grab Extension — Options</title>
   <style>
     :root {
       color-scheme: light dark;
+      /* Text Grab palette */
+      --teal: #308e98;
+      --teal-dark: #18474c;
+      --teal-hover: #3fa5b0;
+
+      --page: light-dark(#f3f7f7, #0f1516);
+      --surface: light-dark(#ffffff, #18211f);
+      --surface-2: light-dark(#f7fafa, #131b1a);
+      --border: light-dark(#e2eaea, #2a3635);
+      --ink: light-dark(#13262a, #eef4f3);
+      --ink-soft: light-dark(#46595c, #b6c4c3);
+      --ink-muted: light-dark(#6b7d80, #8a9a99);
+      --track-off: light-dark(#cdd9d9, #3a4847);
     }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--page); }
+
     body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       font-size: 14px;
-      max-width: 560px;
-      margin: 24px auto;
-      padding: 0 16px;
+      line-height: 1.5;
+      color: var(--ink);
+      margin: 0;
+      padding: 40px 16px 56px;
     }
-    h1 { font-size: 18px; }
-    label {
+
+    .wrap {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* ---- header ---- */
+    header.hero {
       display: flex;
-      gap: 10px;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 22px;
+      margin-bottom: 26px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    header.hero img {
+      width: 52px;
+      height: 52px;
+      flex: none;
+      filter: drop-shadow(0 2px 6px rgba(48, 142, 152, 0.35));
+    }
+
+    .hero-text h1 {
+      margin: 0;
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .hero-text p {
+      margin: 2px 0 0;
+      font-size: 13px;
+      color: var(--ink-muted);
+    }
+
+    /* ---- settings ---- */
+    .section-label {
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--ink-muted);
+      margin: 0 0 12px 2px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 2px light-dark(rgba(19, 38, 42, 0.04), rgba(0, 0, 0, 0.25));
+    }
+
+    label.setting {
+      display: flex;
       align-items: flex-start;
-      margin: 14px 0;
+      gap: 16px;
+      padding: 16px 18px;
+      margin: 0;
       cursor: pointer;
+      transition: background 0.12s ease;
     }
-    input[type='checkbox'] { margin-top: 3px; }
-    .hint { color: light-dark(#666, #9a9a9a); font-size: 12.5px; }
-    #saved {
-      color: #308e98;
-      visibility: hidden;
+
+    label.setting + label.setting {
+      border-top: 1px solid var(--border);
+    }
+
+    label.setting:hover {
+      background: var(--surface-2);
+    }
+
+    .setting .text { flex: 1; min-width: 0; }
+
+    .setting .title {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--ink);
+    }
+
+    .setting .hint {
+      margin-top: 3px;
       font-size: 12.5px;
+      line-height: 1.45;
+      color: var(--ink-muted);
     }
+
+    .setting .hint code {
+      font-family: 'Cascadia Code', ui-monospace, 'Consolas', monospace;
+      font-size: 11.5px;
+      padding: 1px 5px;
+      border-radius: 5px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
+
+    /* ---- branded toggle (styled checkbox) ---- */
     input[type='checkbox'] {
-      accent-color: #308e98;
+      appearance: none;
+      -webkit-appearance: none;
+      flex: none;
+      position: relative;
+      width: 42px;
+      height: 24px;
+      margin: 1px 0 0;
+      border-radius: 12px;
+      background: var(--track-off);
+      cursor: pointer;
+      transition: background 0.16s ease;
+    }
+
+    input[type='checkbox']::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 1px 3px rgba(7, 24, 24, 0.4);
+      transition: transform 0.16s ease;
+    }
+
+    input[type='checkbox']:checked {
+      background: var(--teal);
+    }
+
+    input[type='checkbox']:checked::after {
+      transform: translateX(18px);
+    }
+
+    input[type='checkbox']:focus-visible {
+      outline: 2px solid var(--teal-hover);
+      outline-offset: 2px;
+    }
+
+    /* ---- footer ---- */
+    footer {
+      margin-top: 26px;
+      text-align: center;
+      font-size: 12.5px;
+      color: var(--ink-muted);
+    }
+
+    footer a {
+      color: var(--teal);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    footer a:hover { text-decoration: underline; }
+
+    /* ---- saved pill ---- */
+    #saved {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      margin: 0;
+      padding: 9px 16px;
+      border-radius: 999px;
+      background: var(--teal-dark);
+      color: #ffffff;
+      font-size: 12.5px;
+      font-weight: 600;
+      box-shadow: 0 6px 18px rgba(7, 24, 24, 0.35);
+      visibility: hidden;
     }
   </style>
 </head>
 <body>
-  <h1>Text Grab Extension options</h1>
+  <div class="wrap">
+    <header class="hero">
+      <img src="../icons/icon128.png" alt="Text Grab" />
+      <div class="hero-text">
+        <h1>Text Grab</h1>
+        <p>Browser extension settings</p>
+      </div>
+    </header>
 
-  <label>
-    <input type="checkbox" id="overlayEnabled" />
-    <span>
-      Show a copy button when hovering over tables
-      <div class="hint">A small "Copy table" button appears at the top-right corner of data tables.</div>
-    </span>
-  </label>
+    <main>
+      <p class="section-label">Copying</p>
+      <div class="card">
+        <label class="setting">
+          <span class="text">
+            <span class="title">Flatten line breaks inside table cells</span>
+            <span class="hint">When on, multi-line cells are copied as a single line. When off, line breaks are kept using spreadsheet-style quoting.</span>
+          </span>
+          <input type="checkbox" id="flattenCellNewlines" />
+        </label>
 
-  <label>
-    <input type="checkbox" id="flattenCellNewlines" />
-    <span>
-      Flatten line breaks inside table cells
-      <div class="hint">When on, multi-line cells are copied as a single line. When off, line breaks are kept using spreadsheet-style quoting.</div>
-    </span>
-  </label>
+        <label class="setting">
+          <span class="text">
+            <span class="title">Show “Send to Text Grab” actions</span>
+            <span class="hint">Requires the Text Grab app with the <code>text-grab://</code> protocol registered.</span>
+          </span>
+          <input type="checkbox" id="sendToTextGrab" />
+        </label>
+      </div>
+    </main>
 
-  <label>
-    <input type="checkbox" id="sendToTextGrab" />
-    <span>
-      Show "Send to Text Grab" actions
-      <div class="hint">Requires the Text Grab app with the text-grab:// protocol registered.</div>
-    </span>
-  </label>
+    <footer>
+      Get the Text Grab app at <a href="https://www.textgrab.net" target="_blank" rel="noopener">textgrab.net</a>
+    </footer>
+  </div>
 
-  <p id="saved">Saved.</p>
+  <p id="saved">Saved</p>
 
   <script type="module" src="options.js"></script>
 </body>

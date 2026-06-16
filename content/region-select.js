@@ -203,6 +203,49 @@
 .tg-region-toolbar button.cancel {
   padding: 6px 8px;
 }
+
+/* Table-mode "Copy table / Copy list" hint pinned to each table or list on the
+   page. Sits above the dim shade so it stays visible and clickable; one click
+   copies the whole structure without dragging a region. */
+.tg-region-hint {
+  position: absolute;
+  z-index: 2147483646;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  background: #18474c;
+  border: 1px solid #308e98;
+  border-radius: 7px;
+  color: #f0f0f0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(7, 24, 24, 0.5);
+}
+
+.tg-region-hint:hover {
+  background: #308e98;
+  color: #ffffff;
+}
+
+.tg-region-hint:active {
+  background: #071818;
+}
+
+/* Preview of exactly what a hint will copy, shown while hovering it. Sits above
+   the dim shade so it reads clearly even over dimmed page content. */
+.tg-region-highlight {
+  position: absolute;
+  z-index: 2147483646;
+  pointer-events: none;
+  background: rgba(48, 142, 152, 0.22);
+  border: 2px solid #308e98;
+  border-radius: 3px;
+  box-shadow: 0 0 0 2px rgba(48, 142, 152, 0.25);
+}
 `;
 
   let session = null; // active selection session
@@ -215,6 +258,7 @@
    *   onConfirm: (mode: string, rect: {x:number,y:number,width:number,height:number}, sendToTextGrab: boolean) => void,
    *   onModeChange?: (mode: string) => void,
    *   onSendToggleChange?: (sendToTextGrab: boolean) => void,
+   *   onCopyStructure?: (payload: { kind: 'table'|'list', table?: Element, set?: object, sendToTextGrab: boolean }) => void,
    * }} options rect is in page (document) CSS pixels.
    */
   function startRegionSelect({
@@ -224,6 +268,7 @@
     onConfirm,
     onModeChange,
     onSendToggleChange,
+    onCopyStructure,
   }) {
     cancelRegionSelect();
 
@@ -376,6 +421,10 @@
       shade.style.display = screenshot ? 'none' : '';
       updateConfirmLabel();
       scheduleHighlights();
+      // Per-table/list copy hints are a Table-mode affordance only; other modes
+      // capture whatever the rectangle covers, so the whole-structure shortcut
+      // does not apply (and its buttons must not linger over the shade).
+      renderTableHints();
       onModeChange?.(newMode);
     }
 
@@ -421,8 +470,11 @@
     // coalesced to one pass per animation frame to stay cheap during drags.
 
     let hitsRAF = null;
+    let hintEls = [];
+    let highlightEls = [];
     const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'IFRAME']);
     const MAX_HITS = 800; // guardrail for pathologically large selections
+    const MAX_HINTS = 40; // keep a busy page legible
 
     // Match the dim layer to the document so the shade always covers the page.
     function sizeShade() {
@@ -654,6 +706,117 @@
       shadeHoles.replaceChildren(frag);
     }
 
+    // ---- table-mode copy hints ----
+    // A little "Copy table" / "Copy list" button pinned to every data table and
+    // repeating list on the page. Page-anchored (like the rect and toolbar), so
+    // they scroll with their structure; shown only in Table mode. Clicking one
+    // copies that whole structure and ends the selection.
+
+    function clearHints() {
+      clearHighlight();
+      for (const el of hintEls) el.remove();
+      hintEls = [];
+    }
+
+    function clearHighlight() {
+      for (const el of highlightEls) el.remove();
+      highlightEls = [];
+    }
+
+    // Outline exactly what a hint would copy: the whole table for a table, each
+    // record's box for a list (mirroring what the copy actually grabs). Boxes
+    // are clamped to the page and skipped when scrolled out of an overflow
+    // container, so the preview lines up with reality.
+    function showHighlight(s) {
+      clearHighlight();
+      const targets = s.kind === 'list' && s.set?.items?.length ? s.set.items : [s.el];
+      const anchor = hintEls[0] ?? toolbar; // keep highlights beneath the hint buttons
+      let drawn = 0;
+      for (const el of targets) {
+        const page = clampToPage(visibleHitRect(el) ?? el.getBoundingClientRect());
+        if (!page) continue;
+        const hl = document.createElement('div');
+        hl.className = 'tg-region-highlight';
+        hl.style.left = `${page.x}px`;
+        hl.style.top = `${page.y}px`;
+        hl.style.width = `${page.width}px`;
+        hl.style.height = `${page.height}px`;
+        root.insertBefore(hl, anchor);
+        highlightEls.push(hl);
+        if (++drawn >= MAX_HITS) break;
+      }
+    }
+
+    // Every copy-worthy structure on the page: real data tables first, then the
+    // repeating lists/card-runs the tint already understands. A list nested in
+    // (or wrapping) a table we already offer is dropped so we don't double up.
+    function collectStructures() {
+      const out = [];
+      const tables = [];
+      if (TG.tableGrid?.isDataTable) {
+        for (const table of document.querySelectorAll('table')) {
+          if (isOurNode(table) || !TG.tableGrid.isDataTable(table)) continue;
+          tables.push(table);
+          out.push({ kind: 'table', el: table });
+        }
+      }
+      for (const set of detectedRecordSets()) {
+        const c = set.container;
+        if (!c || isOurNode(c)) continue;
+        if (tables.some((t) => t.contains(c) || c.contains(t))) continue;
+        out.push({ kind: 'list', el: c, set });
+      }
+      return out.slice(0, MAX_HINTS);
+    }
+
+    function renderTableHints() {
+      clearHints();
+      if (!session || session.mode !== 'table') return;
+      for (const s of collectStructures()) {
+        // Skip structures scrolled entirely out of an overflow container — their
+        // geometric box would float a hint over unrelated content.
+        if (!visibleHitRect(s.el)) continue;
+        const box = s.el.getBoundingClientRect();
+        if (box.width < 1 || box.height < 1) continue;
+
+        const hint = document.createElement('button');
+        hint.type = 'button';
+        hint.className = 'tg-region-hint';
+        hint.textContent = s.kind === 'table' ? 'Copy table' : 'Copy list';
+        hint.title =
+          s.kind === 'table'
+            ? 'Copy this whole table'
+            : 'Copy this whole list as a table';
+        // Preview what this hint copies while the pointer is over it (or it has
+        // keyboard focus).
+        hint.addEventListener('mouseenter', () => showHighlight(s));
+        hint.addEventListener('mouseleave', clearHighlight);
+        hint.addEventListener('focus', () => showHighlight(s));
+        hint.addEventListener('blur', clearHighlight);
+        // Swallow the pointerdown so it never reaches the backdrop's draw handler.
+        hint.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+        hint.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const sendToTextGrab = !!session?.sendToTextGrab;
+          const payload =
+            s.kind === 'table'
+              ? { kind: 'table', table: s.el, sendToTextGrab }
+              : { kind: 'list', set: s.set, sendToTextGrab };
+          cancelRegionSelect();
+          onCopyStructure?.(payload);
+        });
+        // Below the toolbar (which stays on top) but above the shade and backdrop.
+        root.insertBefore(hint, toolbar);
+        hint.style.top = `${Math.max(0, box.top + window.scrollY + 4)}px`;
+        hint.style.left = `${Math.max(0, box.right + window.scrollX - hint.offsetWidth - 4)}px`;
+        hintEls.push(hint);
+      }
+    }
+
     // ---- pointer interactions ----
 
     let drag = null; // { kind: 'draw'|'move'|'resize', dir?, startX, startY, startRect }
@@ -800,6 +963,7 @@
     session.cleanup = () => {
       drag = null;
       stopAutoScroll();
+      clearHints();
       if (hitsRAF != null) {
         cancelAnimationFrame(hitsRAF);
         hitsRAF = null;
@@ -841,6 +1005,13 @@
     };
     window.addEventListener('keydown', session.onKeyDown, true);
 
+    // Hints are positioned once per render; a resize reflows the page, so
+    // recompute their anchors. (Scrolling needs nothing — they are page-anchored.)
+    session.onResize = () => {
+      if (session?.mode === 'table') renderTableHints();
+    };
+    window.addEventListener('resize', session.onResize);
+
     sizeShade();
     setSend(session.sendToTextGrab);
     setMode(session.mode);
@@ -851,6 +1022,7 @@
     if (!session) return;
     session.cleanup?.();
     window.removeEventListener('keydown', session.onKeyDown, true);
+    if (session.onResize) window.removeEventListener('resize', session.onResize);
     session.host.remove();
     session = null;
   }

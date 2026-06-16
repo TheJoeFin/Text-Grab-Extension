@@ -157,6 +157,45 @@
     return { ok, rowCount, colCount };
   }
 
+  // Copy a whole <table> from a Table-mode hint, optionally handing the result
+  // to the Text Grab app when the "Send to Text Grab" toggle is on.
+  async function copyWholeTable(table, sendToTextGrab) {
+    const { ok } = await copyTable(table, 'spreadsheet');
+    if (ok && sendToTextGrab) {
+      const { MSG, TEXT_GRAB_URI } = await constants();
+      chrome.runtime.sendMessage({
+        type: MSG.LAUNCH_TEXT_GRAB,
+        uri: TEXT_GRAB_URI.PASTE_SPREADSHEET,
+      });
+    }
+  }
+
+  // Copy a whole repeating list/card-run from a Table-mode hint, as a table.
+  async function copyWholeRecordSet(set, sendToTextGrab) {
+    await ensure(['lib/repeat-detect.js', 'lib/formats.js', 'lib/clipboard.js']);
+    const { MSG, TEXT_GRAB_URI } = await constants();
+    const { grid, rowCount, colCount } = TG.repeatDetect.recordSetToGrid(set);
+    if (rowCount === 0 || colCount === 0) {
+      await toast('Could not read this list', 'error');
+      return;
+    }
+    const settings = await settingsApi.getSettings();
+    const ok = await TG.clipboard.copyMultiFormat({
+      html: TG.formats.toCleanHtmlTable(null, grid),
+      text: TG.formats.gridToTsv(grid, { flattenNewlines: settings.flattenCellNewlines }),
+    });
+    if (!ok) {
+      await toast('Copy failed', 'error');
+      return;
+    }
+    if (sendToTextGrab) {
+      chrome.runtime.sendMessage({ type: MSG.LAUNCH_TEXT_GRAB, uri: TEXT_GRAB_URI.PASTE_SPREADSHEET });
+      await toast(`List copied (${rowCount} x ${colCount}) — sent to Text Grab`, 'success');
+    } else {
+      await toast(`List copied: ${rowCount} rows x ${colCount} columns`, 'success');
+    }
+  }
+
   async function listTables() {
     await ensure(['lib/table-to-grid.js', 'content/table-detect.js']);
     return { ok: true, tables: await TG.tableDetect.describeTables() };
@@ -242,8 +281,14 @@
     if (isPdfViewer()) return openInPdfViewer(requestedMode);
 
     // repeat-detect rides along so Table mode can tint repeating lists/cards;
-    // visibility lets the tint skip content scrolled out of overflow containers.
-    await ensure(['lib/visibility.js', 'lib/repeat-detect.js', 'content/region-select.js']);
+    // visibility lets the tint skip content scrolled out of overflow containers;
+    // table-to-grid lets Table mode pin a "Copy table" hint to each data table.
+    await ensure([
+      'lib/visibility.js',
+      'lib/repeat-detect.js',
+      'lib/table-to-grid.js',
+      'content/region-select.js',
+    ]);
     const { REGION_MODE, isWindows } = await constants();
     const settings = await settingsApi.getSettings();
     // Screenshot mode and the "Send to Text Grab" toggle only do anything on
@@ -256,6 +301,17 @@
       sendToTextGrab: isWindows && settings.regionSendToTextGrab,
       onModeChange: (newMode) => settingsApi.saveSettings({ regionMode: newMode }),
       onSendToggleChange: (on) => settingsApi.saveSettings({ regionSendToTextGrab: on }),
+      // Table mode pins a "Copy table / Copy list" hint to each structure; one
+      // click copies the WHOLE thing (no dragging) and ends the selection.
+      onCopyStructure: async ({ kind, table, set, sendToTextGrab }) => {
+        try {
+          if (kind === 'table') await copyWholeTable(table, sendToTextGrab);
+          else await copyWholeRecordSet(set, sendToTextGrab);
+        } catch (err) {
+          console.warn('[Text Grab Extension] copy structure failed:', err);
+          await toast(`Copy failed: ${err.message}`, 'error');
+        }
+      },
       onConfirm: async (mode, rect, sendToTextGrab) => {
         try {
           if (mode === REGION_MODE.SCREENSHOT) await regionScreenshot(rect);
@@ -503,53 +559,4 @@
       await toast(`Table region copied${source}: ${rowCount} rows x ${colCount} columns`, 'success');
     }
   }
-
-  // ---- Hover overlay (opt-in via the options page) ----
-
-  async function initOverlay() {
-    await ensure([
-      'lib/table-to-grid.js',
-      'content/overlay.js',
-      'lib/formats.js',
-      'lib/clipboard.js',
-    ]);
-    const { sendToTextGrab } = await settingsApi.getSettings();
-    const { isWindows } = await constants();
-    TG.overlay.enableHoverOverlay({
-      copyTable: (table, format) => copyTable(table, format),
-      // The handoff only works on Windows (text-grab:// desktop app).
-      sendToTextGrab: !isWindows || !sendToTextGrab
-        ? null
-        : async (table) => {
-            const { ok } = await copyTable(table, 'spreadsheet');
-            if (!ok) return;
-            const { MSG, TEXT_GRAB_URI } = await constants();
-            chrome.runtime.sendMessage({
-              type: MSG.LAUNCH_TEXT_GRAB,
-              uri: TEXT_GRAB_URI.PASTE_SPREADSHEET,
-            });
-          },
-    });
-  }
-
-  (async () => {
-    try {
-      // Read the opt-in flag directly (no module needed) so default pages do
-      // no injection at all until the overlay is actually enabled.
-      const { overlayEnabled } = await chrome.storage.sync.get({ overlayEnabled: false });
-      if (overlayEnabled) await initOverlay();
-      chrome.storage.onChanged.addListener((changes, area) => {
-        if (area !== 'sync' || !('overlayEnabled' in changes)) return;
-        (async () => {
-          if (changes.overlayEnabled.newValue) await initOverlay();
-          else {
-            await ensure(['content/overlay.js']);
-            TG.overlay.disableHoverOverlay();
-          }
-        })().catch((err) => console.warn('[Text Grab Extension] overlay toggle failed:', err));
-      });
-    } catch (err) {
-      console.warn('[Text Grab Extension] overlay init failed:', err);
-    }
-  })();
 })();

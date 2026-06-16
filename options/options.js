@@ -1,6 +1,6 @@
 import { getSettings, saveSettings } from '../lib/settings.js';
 
-const checkboxIds = ['overlayEnabled', 'flattenCellNewlines', 'sendToTextGrab'];
+const checkboxIds = ['flattenCellNewlines', 'sendToTextGrab'];
 const savedEl = document.getElementById('saved');
 let savedTimer;
 
