@@ -12,7 +12,7 @@
 // globalThis.__TGX before this module runs.
 
 import * as pdfjsLib from '../vendor/pdf.mjs';
-import { MSG, REGION_MODE, TEXT_GRAB_URI } from '../lib/messages.js';
+import { MSG, REGION_MODE, FORMAT, TEXT_GRAB_URI } from '../lib/messages.js';
 import { DEFAULT_SETTINGS } from '../lib/settings.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('vendor/pdf.worker.mjs');
@@ -351,10 +351,11 @@ async function regionTableCopy(pageRect, sendToTextGrab) {
   }
   const { grid, rowCount, colCount } = result;
   const settings = await getSettings();
-  const ok = await TG.clipboard.copyMultiFormat({
-    html: TG.formats.toCleanHtmlTable(null, grid),
-    text: TG.formats.gridToTsv(grid, { flattenNewlines: settings.flattenCellNewlines }),
-  });
+  // A Text Grab handoff always uses Returns & Tab; otherwise honor the setting.
+  const format = sendToTextGrab ? FORMAT.SPREADSHEET : settings.tableFormat ?? FORMAT.SPREADSHEET;
+  const ok = await TG.clipboard.copyMultiFormat(
+    TG.formats.gridToClipboard(grid, { format, flattenNewlines: settings.flattenCellNewlines })
+  );
   if (!ok) {
     toast('Copy failed', 'error');
     return;

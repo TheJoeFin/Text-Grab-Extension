@@ -171,6 +171,64 @@
       outline-offset: 2px;
     }
 
+    /* ---- segmented control (radio group) ---- */
+    /* A non-label settings row (a <label> must not wrap the radiogroup), so it
+       carries its own box styling instead of inheriting from label.setting. */
+    .setting--stack {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      padding: 16px 18px;
+    }
+
+    .segmented {
+      display: inline-flex;
+      width: fit-content;
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      overflow: hidden;
+      background: var(--surface-2);
+    }
+
+    .segmented label {
+      position: relative;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .segmented input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .segmented span {
+      display: block;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--ink-soft);
+      border-left: 1px solid var(--border);
+      transition: background 0.12s ease, color 0.12s ease;
+    }
+
+    .segmented label:first-child span { border-left: 0; }
+
+    .segmented input:checked + span {
+      background: var(--teal);
+      color: #ffffff;
+    }
+
+    .segmented input:focus-visible + span {
+      outline: 2px solid var(--teal-hover);
+      outline-offset: -2px;
+    }
+
     /* ---- footer ---- */
     footer {
       margin-top: 26px;
@@ -227,11 +285,34 @@
 
         <label class="setting">
           <span class="text">
+            <span class="title">Ignore empty rows and columns</span>
+            <span class="hint">When copying a table or list, drop any row or column that is entirely blank so the result stays tight.</span>
+          </span>
+          <input type="checkbox" id="ignoreEmptyRowsCols" />
+        </label>
+
+        <label class="setting">
+          <span class="text">
             <span class="title">Show “Send to Text Grab” actions</span>
             <span class="hint">Requires the Text Grab app with the <code>text-grab://</code> protocol registered.</span>
           </span>
           <input type="checkbox" id="sendToTextGrab" />
         </label>
+      </div>
+
+      <p class="section-label" style="margin-top: 26px;">Table &amp; list layout</p>
+      <div class="card">
+        <div class="setting setting--stack">
+          <span class="text">
+            <span class="title">Copy format</span>
+            <span class="hint">How copied tables and lists are placed on the clipboard. <strong>Returns &amp; Tab</strong> pastes into spreadsheets and plain text; <strong>Markdown</strong> for docs and code; <strong>HTML</strong> for rich documents. Sending to Text Grab always uses Returns &amp; Tab.</span>
+          </span>
+          <div class="segmented" role="radiogroup" aria-label="Copy format">
+            <label><input type="radio" name="tableFormat" value="spreadsheet" /><span>Returns &amp; Tab</span></label>
+            <label><input type="radio" name="tableFormat" value="markdown" /><span>Markdown</span></label>
+            <label><input type="radio" name="tableFormat" value="html" /><span>HTML</span></label>
+          </div>
+        </div>
       </div>
     </main>
 

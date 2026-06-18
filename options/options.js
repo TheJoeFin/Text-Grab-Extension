@@ -1,8 +1,15 @@
 import { getSettings, saveSettings } from '../lib/settings.js';
 
-const checkboxIds = ['flattenCellNewlines', 'sendToTextGrab'];
+const checkboxIds = ['flattenCellNewlines', 'ignoreEmptyRowsCols', 'sendToTextGrab'];
 const savedEl = document.getElementById('saved');
 let savedTimer;
+
+// Briefly flash the "Saved" pill after any change is persisted.
+function flashSaved() {
+  savedEl.style.visibility = 'visible';
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => (savedEl.style.visibility = 'hidden'), 1500);
+}
 
 // Text Grab is a Windows-only app reached via text-grab://; hide its toggle
 // where the handoff can't work.
@@ -17,8 +24,16 @@ for (const id of checkboxIds) {
   checkbox.checked = Boolean(settings[id]);
   checkbox.addEventListener('change', async () => {
     await saveSettings({ [id]: checkbox.checked });
-    savedEl.style.visibility = 'visible';
-    clearTimeout(savedTimer);
-    savedTimer = setTimeout(() => (savedEl.style.visibility = 'hidden'), 1500);
+    flashSaved();
+  });
+}
+
+// Table/list copy format (segmented radio group).
+for (const radio of document.querySelectorAll('input[name="tableFormat"]')) {
+  radio.checked = radio.value === settings.tableFormat;
+  radio.addEventListener('change', async () => {
+    if (!radio.checked) return;
+    await saveSettings({ tableFormat: radio.value });
+    flashSaved();
   });
 }

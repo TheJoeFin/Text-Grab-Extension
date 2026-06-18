@@ -136,20 +136,37 @@
     return copyTable(table, format);
   }
 
+  // Resolve which output layout to copy in: the user's tableFormat setting,
+  // except a Text Grab handoff always uses Returns & Tab (the app pastes
+  // tab-separated data via text-grab://paste-spreadsheet).
+  async function resolveTableFormat(sendToTextGrab) {
+    const { FORMAT } = await constants();
+    if (sendToTextGrab) return FORMAT.SPREADSHEET;
+    const settings = await settingsApi.getSettings();
+    return settings.tableFormat ?? FORMAT.SPREADSHEET;
+  }
+
   async function copyTable(table, format) {
     await ensure(['lib/table-to-grid.js', 'lib/formats.js', 'lib/clipboard.js']);
-    const { FORMAT } = await constants();
     const settings = await settingsApi.getSettings();
-    const { grid, rowCount, colCount } = TG.tableGrid.tableToGrid(table);
-    let ok;
-    if (format === FORMAT.MARKDOWN) {
-      ok = await TG.clipboard.copyMultiFormat({ text: TG.formats.gridToMarkdownTable(grid) });
-    } else {
-      ok = await TG.clipboard.copyMultiFormat({
-        html: TG.formats.toCleanHtmlTable(table, grid),
-        text: TG.formats.gridToTsv(grid, { flattenNewlines: settings.flattenCellNewlines }),
-      });
+    let { grid } = TG.tableGrid.tableToGrid(table);
+    // With "ignore empty rows/columns" on, drop all-blank rows/columns and build
+    // the HTML from the trimmed grid (not the element) so HTML and TSV stay in
+    // sync — trimming and merged-cell fidelity can't both hold, so trimming wins.
+    let htmlSource = table;
+    if (settings.ignoreEmptyRowsCols) {
+      grid = TG.formats.trimEmptyGrid(grid);
+      htmlSource = null;
     }
+    const rowCount = grid.length;
+    const colCount = grid[0]?.length ?? 0;
+    const ok = await TG.clipboard.copyMultiFormat(
+      TG.formats.gridToClipboard(grid, {
+        format,
+        htmlSource,
+        flattenNewlines: settings.flattenCellNewlines,
+      })
+    );
     await toast(
       ok ? `Table copied: ${rowCount} rows x ${colCount} columns` : 'Copy failed',
       ok ? 'success' : 'error'
@@ -160,7 +177,7 @@
   // Copy a whole <table> from a Table-mode hint, optionally handing the result
   // to the Text Grab app when the "Send to Text Grab" toggle is on.
   async function copyWholeTable(table, sendToTextGrab) {
-    const { ok } = await copyTable(table, 'spreadsheet');
+    const { ok } = await copyTable(table, await resolveTableFormat(sendToTextGrab));
     if (ok && sendToTextGrab) {
       const { MSG, TEXT_GRAB_URI } = await constants();
       chrome.runtime.sendMessage({
@@ -174,16 +191,21 @@
   async function copyWholeRecordSet(set, sendToTextGrab) {
     await ensure(['lib/repeat-detect.js', 'lib/formats.js', 'lib/clipboard.js']);
     const { MSG, TEXT_GRAB_URI } = await constants();
-    const { grid, rowCount, colCount } = TG.repeatDetect.recordSetToGrid(set);
+    const settings = await settingsApi.getSettings();
+    let { grid } = TG.repeatDetect.recordSetToGrid(set);
+    if (settings.ignoreEmptyRowsCols) grid = TG.formats.trimEmptyGrid(grid);
+    const rowCount = grid.length;
+    const colCount = grid[0]?.length ?? 0;
     if (rowCount === 0 || colCount === 0) {
       await toast('Could not read this list', 'error');
       return;
     }
-    const settings = await settingsApi.getSettings();
-    const ok = await TG.clipboard.copyMultiFormat({
-      html: TG.formats.toCleanHtmlTable(null, grid),
-      text: TG.formats.gridToTsv(grid, { flattenNewlines: settings.flattenCellNewlines }),
-    });
+    const ok = await TG.clipboard.copyMultiFormat(
+      TG.formats.gridToClipboard(grid, {
+        format: await resolveTableFormat(sendToTextGrab),
+        flattenNewlines: settings.flattenCellNewlines,
+      })
+    );
     if (!ok) {
       await toast('Copy failed', 'error');
       return;
@@ -544,10 +566,21 @@
     }
 
     const settings = await settingsApi.getSettings();
-    const ok = await TG.clipboard.copyMultiFormat({
-      html: TG.formats.toCleanHtmlTable(null, grid),
-      text: TG.formats.gridToTsv(grid, { flattenNewlines: settings.flattenCellNewlines }),
-    });
+    if (settings.ignoreEmptyRowsCols) {
+      grid = TG.formats.trimEmptyGrid(grid);
+      rowCount = grid.length;
+      colCount = grid[0]?.length ?? 0;
+      if (rowCount === 0 || colCount === 0) {
+        await toast('Nothing left after dropping empty rows and columns', 'error');
+        return;
+      }
+    }
+    const ok = await TG.clipboard.copyMultiFormat(
+      TG.formats.gridToClipboard(grid, {
+        format: await resolveTableFormat(sendToTextGrab),
+        flattenNewlines: settings.flattenCellNewlines,
+      })
+    );
     if (!ok) {
       await toast('Copy failed', 'error');
       return;
