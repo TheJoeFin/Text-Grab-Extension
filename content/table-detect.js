@@ -5,20 +5,33 @@
 (() => {
   const TG = (globalThis.__TGX ??= {});
 
-  /** All data tables on the page, in document order. */
+  /**
+   * All data tables on the page (native <table>s and ARIA grids), descending
+   * through open shadow roots so tables inside web components are included.
+   */
   async function findDataTables(doc = document) {
-    const { isDataTable } = TG.tableGrid;
-    return [...doc.querySelectorAll('table')].filter(isDataTable);
+    const { isDataTable, allTables } = TG.tableGrid;
+    return allTables(doc).filter(isDataTable);
   }
 
-  /** The nearest data table containing the given element, or null. */
+  /**
+   * The nearest data table containing the given element, or null. Crosses
+   * shadow boundaries upward so a click on light-DOM content slotted into a
+   * web-component grid still resolves to the grid's <table>.
+   */
   async function tableForElement(el) {
-    const { isDataTable } = TG.tableGrid;
-    let table = el instanceof Element ? el.closest('table') : null;
-    while (table && !isDataTable(table)) {
-      table = table.parentElement?.closest('table') ?? null;
+    const { isDataTable, TABLE_SELECTOR } = TG.tableGrid;
+    let node = el instanceof Element ? el : null;
+    while (node) {
+      const table = node.closest(TABLE_SELECTOR);
+      if (table && isDataTable(table)) return table;
+      // Climb to the next Element up: past a non-data table, or out of the
+      // current shadow root to its host. Never leave `node` as a ShadowRoot
+      // (it has no .closest).
+      const parent = table ? table.parentNode : node.getRootNode?.();
+      node = parent instanceof Element ? parent : parent instanceof ShadowRoot ? parent.host : null;
     }
-    return table;
+    return null;
   }
 
   /** The first data table intersecting the current selection, or null. */

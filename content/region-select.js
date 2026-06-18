@@ -602,7 +602,7 @@
     function tableHits(region, out) {
       let best = null;
       let bestArea = 0;
-      for (const table of document.querySelectorAll('table')) {
+      for (const table of detectedTables()) {
         if (isOurNode(table)) continue;
         const r = table.getBoundingClientRect();
         const ox = Math.min(r.right, region.x + region.width) - Math.max(r.left, region.x);
@@ -621,7 +621,7 @@
         return;
       }
 
-      const cells = [...best.querySelectorAll('th, td')].filter((c) => !isOurNode(c));
+      const cells = TG.tableGrid.tableCells(best).filter((c) => !isOurNode(c));
       // Pass 1: the pixel block spanned by the cells intersecting the region.
       // Each cell's VISIBLE rect is used so cells scrolled out of a table body
       // with its own scrollbar neither expand the block nor get revealed.
@@ -665,6 +665,14 @@
     function detectedRecordSets() {
       if (!TG.repeatDetect) return [];
       return (session._recordSets ??= TG.repeatDetect.detectRecordSets(document.body));
+    }
+
+    // Table-like elements on the page (native <table>s and ARIA grids, including
+    // those inside open shadow roots). The scan pierces shadow DOM so it is run
+    // once per session and cached — tableHits re-reads this every frame.
+    function detectedTables() {
+      if (!TG.tableGrid?.allTables) return [];
+      return (session._tables ??= TG.tableGrid.allTables());
     }
 
     // Reveal each record the region touches (whole box, clamped to the page),
@@ -754,24 +762,45 @@
       const out = [];
       const tables = [];
       if (TG.tableGrid?.isDataTable) {
-        for (const table of document.querySelectorAll('table')) {
+        for (const table of detectedTables()) {
           if (isOurNode(table) || !TG.tableGrid.isDataTable(table)) continue;
           tables.push(table);
           out.push({ kind: 'table', el: table });
         }
       }
+      // A box sits inside another (with 1px slack) — used to drop a list whose
+      // content is rendered inside a table we already offer. DOM containment
+      // misses this when the list is light-DOM content slotted into a table that
+      // lives in a shadow root, so fall back to geometry.
+      const rectInside = (inner, outer) =>
+        inner.left >= outer.left - 1 &&
+        inner.right <= outer.right + 1 &&
+        inner.top >= outer.top - 1 &&
+        inner.bottom <= outer.bottom + 1;
       for (const set of detectedRecordSets()) {
         const c = set.container;
         if (!c || isOurNode(c)) continue;
-        if (tables.some((t) => t.contains(c) || c.contains(t))) continue;
+        const cRect = c.getBoundingClientRect();
+        const insideTable = tables.some(
+          (t) => t.contains(c) || c.contains(t) || rectInside(cRect, t.getBoundingClientRect())
+        );
+        if (insideTable) continue;
         out.push({ kind: 'list', el: c, set });
       }
       return out.slice(0, MAX_HINTS);
     }
 
+    // Gap (CSS px) kept between hint buttons when nudged apart so they never
+    // touch and each stays an easy click target.
+    const HINT_GAP = 6;
+
     function renderTableHints() {
       clearHints();
       if (!session || session.mode !== 'table') return;
+
+      // Pass 1: build a hint for every structure and record its natural
+      // top-right anchor (in page coordinates) plus its measured size.
+      const placements = [];
       for (const s of collectStructures()) {
         // Skip structures scrolled entirely out of an overflow container — their
         // geometric box would float a hint over unrelated content.
@@ -811,9 +840,44 @@
         });
         // Below the toolbar (which stays on top) but above the shade and backdrop.
         root.insertBefore(hint, toolbar);
-        hint.style.top = `${Math.max(0, box.top + window.scrollY + 4)}px`;
-        hint.style.left = `${Math.max(0, box.right + window.scrollX - hint.offsetWidth - 4)}px`;
+        const width = hint.offsetWidth;
+        const height = hint.offsetHeight;
+        placements.push({
+          hint,
+          width,
+          height,
+          left: Math.max(0, box.right + window.scrollX - width - 4),
+          top: Math.max(0, box.top + window.scrollY + 4),
+        });
         hintEls.push(hint);
+      }
+
+      // Pass 2: nudge any overlapping hints downward so every button stays fully
+      // visible and clickable. Nested/stacked structures share a top-right
+      // corner, which would otherwise pile their buttons into one spot. Going
+      // top-to-bottom, push each hint below any already-placed hint it collides
+      // with; the re-check loop handles cascades onto hints further down.
+      placements.sort((a, b) => a.top - b.top || a.left - b.left);
+      const placed = [];
+      for (const p of placements) {
+        let nudged = true;
+        while (nudged) {
+          nudged = false;
+          for (const q of placed) {
+            const overlaps =
+              p.left < q.left + q.width &&
+              p.left + p.width > q.left &&
+              p.top < q.top + q.height &&
+              p.top + p.height > q.top;
+            if (overlaps) {
+              p.top = q.top + q.height + HINT_GAP;
+              nudged = true;
+            }
+          }
+        }
+        p.hint.style.top = `${p.top}px`;
+        p.hint.style.left = `${p.left}px`;
+        placed.push(p);
       }
     }
 

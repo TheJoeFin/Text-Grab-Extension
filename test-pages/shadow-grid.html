@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Shadow-DOM grid + ARIA grid fixture</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 24px; max-width: 900px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #888; padding: 6px 10px; text-align: left; vertical-align: top; }
+    thead th { background: #eef; }
+    .aria-grid { display: table; width: 100%; border-collapse: collapse; }
+    .aria-grid [role="row"] { display: table-row; }
+    .aria-grid [role="columnheader"],
+    .aria-grid [role="gridcell"],
+    .aria-grid [role="rowheader"] {
+      display: table-cell; border: 1px solid #888; padding: 6px 10px;
+    }
+    .aria-grid [role="columnheader"] { background: #efe; font-weight: 600; }
+    p.note { color: #555; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>Shadow-DOM grid + ARIA grid fixture</h1>
+
+  <h2>1. Native &lt;table role="grid"&gt; inside an open shadow root</h2>
+  <p class="note">
+    Mirrors Microsoft Partner Center's <code>&lt;he-data-grid&gt;</code>: the real
+    table lives in a web component's shadow tree, and the first column's text is
+    projected in from light DOM via <code>&lt;slot&gt;</code>. Table detection must
+    pierce the shadow root, and cell text must resolve the slots. Expected:
+    Select-region Table mode pins a single <strong>Copy table</strong> hint (no
+    duplicate "Copy list"), and copying yields 5 columns including the review text.
+  </p>
+
+  <reviews-grid>
+    <template shadowrootmode="open">
+      <style>
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #888; padding: 6px 10px; text-align: left; vertical-align: top; }
+        thead th { background: #eef; }
+      </style>
+      <table role="grid" aria-rowcount="4" aria-colcount="5">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th role="columnheader" style="width:45%">Reviews</th>
+            <th role="columnheader">Version</th>
+            <th role="columnheader">Country/region</th>
+            <th role="columnheader">Name</th>
+            <th role="columnheader">Date</th>
+          </tr>
+        </thead>
+        <tbody role="rowgroup">
+          <tr role="row">
+            <th role="rowheader" scope="row"><slot name="review-1">(missing)</slot></th>
+            <td role="gridcell">1.9.1.0</td>
+            <td role="gridcell">Germany</td>
+            <td role="gridcell">Andreas</td>
+            <td role="gridcell">Tue, Jun 16, 2026 05:02:28 UTC</td>
+          </tr>
+          <tr role="row">
+            <th role="rowheader" scope="row"><slot name="review-2">(missing)</slot></th>
+            <td role="gridcell">1.9.0.0</td>
+            <td role="gridcell">United States</td>
+            <td role="gridcell">Jordan</td>
+            <td role="gridcell">Mon, Jun 15, 2026 18:44:10 UTC</td>
+          </tr>
+          <tr role="row">
+            <th role="rowheader" scope="row"><slot name="review-3">(missing)</slot></th>
+            <td role="gridcell">1.8.2.0</td>
+            <td role="gridcell">Japan</td>
+            <td role="gridcell">Aiko</td>
+            <td role="gridcell">Sun, Jun 14, 2026 09:11:55 UTC</td>
+          </tr>
+        </tbody>
+      </table>
+    </template>
+
+    <!-- Light-DOM content projected into the shadow table's first column. -->
+    <span slot="review-1">Die App macht genau was sie soll und ist leicht zu bedienen.</span>
+    <span slot="review-2">Works great, but I wish it remembered my last window size.</span>
+    <span slot="review-3">とても便利です。スクリーンショットから文字を取り出せるのが最高。</span>
+  </reviews-grid>
+
+  <h2>2. Div-based ARIA grid (role="grid" on &lt;div&gt;s)</h2>
+  <p class="note">
+    No real <code>&lt;table&gt;</code> at all — a data grid built from
+    <code>&lt;div&gt;</code>s with ARIA roles. Expected: detected and copyable as a
+    3-column table.
+  </p>
+
+  <div class="aria-grid" role="grid" aria-label="Build status">
+    <div role="row">
+      <div role="columnheader">Build</div>
+      <div role="columnheader">Status</div>
+      <div role="columnheader">Duration</div>
+    </div>
+    <div role="row">
+      <div role="gridcell">#4012</div>
+      <div role="gridcell">Passed</div>
+      <div role="gridcell">3m 12s</div>
+    </div>
+    <div role="row">
+      <div role="gridcell">#4011</div>
+      <div role="gridcell">Failed</div>
+      <div role="gridcell">1m 02s</div>
+    </div>
+    <div role="row">
+      <div role="gridcell">#4010</div>
+      <div role="gridcell">Passed</div>
+      <div role="gridcell">3m 47s</div>
+    </div>
+  </div>
+</body>
+</html>
