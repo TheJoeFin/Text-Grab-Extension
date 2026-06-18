@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Text Grab Extension",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Copy tables as tables, clean text, Markdown, links, and full-page captures. With handoff to the Text Grab Windows app.",
   "minimum_chrome_version": "116",
   "permissions": [
