@@ -150,13 +150,18 @@
     await ensure(['lib/table-to-grid.js', 'lib/formats.js', 'lib/clipboard.js']);
     const settings = await settingsApi.getSettings();
     let { grid } = TG.tableGrid.tableToGrid(table);
-    // With "ignore empty rows/columns" on, drop all-blank rows/columns and build
-    // the HTML from the trimmed grid (not the element) so HTML and TSV stay in
-    // sync — trimming and merged-cell fidelity can't both hold, so trimming wins.
+    // With "ignore empty rows/columns" on, drop all-blank rows/columns. Trimming
+    // reshapes the grid, so the element's colspan/rowspan no longer map onto it
+    // and the HTML must be rebuilt from the flat grid — UNLESS trimming removed
+    // nothing, in which case the element still matches the grid and its merged
+    // cells are kept (the common case: merges but no fully-blank row/column).
     let htmlSource = table;
     if (settings.ignoreEmptyRowsCols) {
-      grid = TG.formats.trimEmptyGrid(grid);
-      htmlSource = null;
+      const trimmed = TG.formats.trimEmptyGrid(grid);
+      if (trimmed.length !== grid.length || (trimmed[0]?.length ?? 0) !== (grid[0]?.length ?? 0)) {
+        htmlSource = null;
+      }
+      grid = trimmed;
     }
     const rowCount = grid.length;
     const colCount = grid[0]?.length ?? 0;
@@ -539,8 +544,17 @@
     let rowCount = 0;
     let colCount = 0;
     let source = '';
+    // When the region covers the WHOLE table, hand the element to the HTML
+    // serializer so merged cells (colspan/rowspan) survive in the text/html
+    // flavor that Excel, Sheets, and Word read. A clipped sub-range can't both
+    // clip and preserve merges, so it stays a flat grid (htmlSource null).
+    let htmlSource = null;
     if (best) {
       ({ grid, rowCount, colCount } = TG.tableGrid.tableToGrid(best, { clipRect: rect }));
+      if (rowCount > 0) {
+        const full = TG.tableGrid.tableToGrid(best);
+        if (full.rowCount === rowCount && full.colCount === colCount) htmlSource = best;
+      }
     }
     if (rowCount === 0) {
       const sets = TG.repeatDetect.detectRecordSets(document.body);
@@ -567,7 +581,14 @@
 
     const settings = await settingsApi.getSettings();
     if (settings.ignoreEmptyRowsCols) {
-      grid = TG.formats.trimEmptyGrid(grid);
+      const trimmed = TG.formats.trimEmptyGrid(grid);
+      // Trimming reshapes the grid; the element's merges no longer map onto it,
+      // so drop back to the flat grid. When trimming removes nothing the element
+      // still matches and its merged cells are kept.
+      if (trimmed.length !== grid.length || (trimmed[0]?.length ?? 0) !== (grid[0]?.length ?? 0)) {
+        htmlSource = null;
+      }
+      grid = trimmed;
       rowCount = grid.length;
       colCount = grid[0]?.length ?? 0;
       if (rowCount === 0 || colCount === 0) {
@@ -578,6 +599,7 @@
     const ok = await TG.clipboard.copyMultiFormat(
       TG.formats.gridToClipboard(grid, {
         format: await resolveTableFormat(sendToTextGrab),
+        htmlSource,
         flattenNewlines: settings.flattenCellNewlines,
       })
     );
