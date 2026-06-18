@@ -1,7 +1,8 @@
 // Select-region control: a resizable, movable rectangle over the page with
 // a mode toolbar (Screenshot / Direct Text / Table). Drag on the dimmed
-// backdrop to draw a new rectangle; drag the rectangle to move it; drag a
-// handle to resize. Esc cancels, Enter confirms.
+// backdrop to draw a new rectangle; click (without dragging) to snap the
+// rectangle to the element under the cursor; drag the rectangle to move it;
+// drag a handle to resize. Esc cancels, Enter confirms.
 //
 // The rectangle is anchored to the PAGE (document coordinates), so it stays
 // over the same content while scrolling; the confirmed rect is reported in
@@ -18,6 +19,14 @@
 
   const HOST_TAG = 'text-grab-extension-region';
   const MIN_SIZE = 12;
+  // A backdrop press that travels less than this many CSS px before release is
+  // treated as a click (snap the region to the element under the cursor) rather
+  // than as drawing a fresh rectangle.
+  const CLICK_SLOP = 5;
+  // On a click-to-snap, the resulting region is capped to this fraction of the
+  // viewport so the toolbar and resize handles never end up off-screen when the
+  // clicked element is huge.
+  const SNAP_VIEWPORT_FILL = 0.9;
 
   // Text Grab palette: Teal #308E98, DarkTeal #18474C, hover #1E595F,
   // pressed #071818 (mirrors Text-Grab/Styles/Colors.xaml + ButtonStyles.xaml)
@@ -888,6 +897,11 @@
     // auto-scroll loop can re-derive page coordinates after each scroll step.
     let lastClientX = 0;
     let lastClientY = 0;
+    // Where the current backdrop press started, in viewport coords — compared
+    // against the release position to tell a click (snap to element) from a drag
+    // (draw a rectangle).
+    let downClientX = 0;
+    let downClientY = 0;
     let autoScrollRAF = null;
 
     // How close (CSS px) the pointer must get to a viewport edge before the
@@ -895,6 +909,90 @@
     // at the very edge.
     const EDGE_ZONE = 60;
     const MAX_SCROLL_SPEED = 24;
+
+    // ---- click-to-snap ----
+    // A click on the backdrop (press and release without dragging) snaps the
+    // selection rectangle to the element under the cursor, so a single click
+    // grabs "the thing I clicked" without dragging a region by hand. The result
+    // is a normal, adjustable rectangle — nothing is captured until confirm, so
+    // the live preview still shows exactly what is included first.
+
+    // The top-most page element at a viewport point, skipping our own overlay
+    // nodes (the closed shadow hosts surface as single elements isOurNode drops).
+    function pageElementAt(clientX, clientY) {
+      for (const el of document.elementsFromPoint(clientX, clientY)) {
+        if (!isOurNode(el)) return el;
+      }
+      return null;
+    }
+
+    // Climb from a hit element to the nearest ancestor that lays out as a real
+    // block with usable size, so clicking a word or an inline link lands on its
+    // paragraph rather than a zero-height inline wrapper.
+    function blockAncestor(el) {
+      let node = el;
+      while (node && node !== document.body && node !== document.documentElement) {
+        const style = getComputedStyle(node);
+        const box = node.getBoundingClientRect();
+        if (style.display !== 'inline' && box.width >= 8 && box.height >= 8) return node;
+        node = node.parentElement;
+      }
+      return el;
+    }
+
+    function snapToElementAt(clientX, clientY) {
+      const hit = pageElementAt(clientX, clientY);
+      if (!hit || hit === document.body || hit === document.documentElement) return false;
+      const box = blockAncestor(hit).getBoundingClientRect();
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const PAD = 2;
+      // Start from the element's box (slightly padded) intersected with the
+      // viewport, so overflow scrolled off-screen never pushes a handle out of
+      // reach.
+      let left = Math.max(0, box.left - PAD);
+      let top = Math.max(0, box.top - PAD);
+      let width = Math.min(vw, box.right + PAD) - left;
+      let height = Math.min(vh, box.bottom + PAD) - top;
+      if (width < 1 || height < 1) return false;
+
+      // Cap to a fraction of the viewport for huge elements, keeping the cap
+      // window centered on the click so the region stays where it was clicked.
+      const maxW = vw * SNAP_VIEWPORT_FILL;
+      const maxH = vh * SNAP_VIEWPORT_FILL;
+      if (width > maxW) {
+        left = clientX - maxW / 2;
+        width = maxW;
+      }
+      if (height > maxH) {
+        top = clientY - maxH / 2;
+        height = maxH;
+      }
+      // Floor tiny elements so the rectangle stays grabbable, growing around the
+      // click rather than from a corner.
+      const floor = MIN_SIZE * 4;
+      if (width < floor) {
+        left -= (floor - width) / 2;
+        width = floor;
+      }
+      if (height < floor) {
+        top -= (floor - height) / 2;
+        height = floor;
+      }
+      // Keep the whole rectangle on-screen.
+      left = Math.max(0, Math.min(left, vw - width));
+      top = Math.max(0, Math.min(top, vh - height));
+
+      rect = {
+        x: Math.round(left + window.scrollX),
+        y: Math.round(top + window.scrollY),
+        width: Math.round(width),
+        height: Math.round(height),
+      };
+      layout();
+      return true;
+    }
 
     const onPointerDown = (e) => {
       if (e.button !== 0) return;
@@ -904,6 +1002,8 @@
 
       lastClientX = e.clientX;
       lastClientY = e.clientY;
+      downClientX = e.clientX;
+      downClientY = e.clientY;
 
       if (target.classList?.contains('tg-region-handle')) {
         drag = { kind: 'resize', dir: target.dataset.dir, startX: e.pageX, startY: e.pageY, startRect: { ...rect } };
@@ -1017,10 +1117,16 @@
     };
 
     const onPointerUp = () => {
+      // A draw press that barely moved is a click: snap to the element under the
+      // cursor instead of leaving the tiny rectangle the press seeded.
+      const clicked =
+        drag?.kind === 'draw' &&
+        Math.hypot(lastClientX - downClientX, lastClientY - downClientY) < CLICK_SLOP;
       drag = null;
       stopAutoScroll();
       window.removeEventListener('pointermove', onPointerMove, true);
       window.removeEventListener('pointerup', onPointerUp, true);
+      if (clicked) snapToElementAt(lastClientX, lastClientY);
     };
 
     // Let cancelRegionSelect() tear down an in-flight drag/scroll loop.
