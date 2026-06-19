@@ -451,8 +451,22 @@ function launchTextGrab(uri) {
 
 // ---- messaging from the service worker ------------------------------------
 
+// The messages this page actually handles. chrome.runtime.sendMessage broadcasts
+// to EVERY extension context, so the content script's SW-bound calls (tg-inject,
+// region-screenshot, …) also land here. We must ignore those: answering with an
+// "unknown message" error would win the response race against the service
+// worker's slower async handler and break the real caller. See HANDLED below.
+const HANDLED = new Set([
+  MSG.START_REGION_SELECT,
+  MSG.SHOW_TOAST,
+  MSG.CAPTURE_PREPARE,
+  MSG.CAPTURE_SCROLL_TO,
+  MSG.CAPTURE_RESTORE,
+]);
+
 function wireMessages() {
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!HANDLED.has(message?.type)) return false; // not ours — let the SW answer
     handleMessage(message)
       .then((result) => sendResponse(result ?? { ok: true }))
       .catch((err) => sendResponse({ ok: false, error: String(err?.message ?? err) }));

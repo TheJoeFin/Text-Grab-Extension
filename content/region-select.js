@@ -527,25 +527,10 @@
       );
     }
 
-    // Clip a viewport rect to the region and convert to page coords, or null
-    // if it falls outside / collapses.
-    function clipToPage(r, region) {
-      const left = Math.max(r.left, region.x);
-      const top = Math.max(r.top, region.y);
-      const right = Math.min(r.right, region.x + region.width);
-      const bottom = Math.min(r.bottom, region.y + region.height);
-      if (right - left < 1 || bottom - top < 1) return null;
-      return {
-        x: left + window.scrollX,
-        y: top + window.scrollY,
-        width: right - left,
-        height: bottom - top,
-      };
-    }
-
     // Convert a viewport rect to page coords, clamped only to the document
-    // bounds (not the region) — used for table cells, which are revealed in
-    // full even where they reach outside the selection.
+    // bounds (not the region) — used for table cells, list records, and text
+    // lines, which are revealed in full even where they reach outside the
+    // selection.
     function clampToPage(r) {
       const left = Math.max(0, r.left + window.scrollX);
       const top = Math.max(0, r.top + window.scrollY);
@@ -567,7 +552,10 @@
     }
 
     // Tint the visible text rects intersecting the region — matches
-    // lib/region-text.js's text-node walk closely enough to preview it.
+    // lib/region-text.js's text-node walk closely enough to preview it. Each
+    // line is revealed in full (clamped to the page, not clipped to the
+    // region) so a line the selection only grazes still reads as a clear
+    // rectangle, the way table cells and list records are shown.
     function textHits(region, out) {
       const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
         acceptNode(node) {
@@ -592,8 +580,8 @@
           // container is not tinted (matching what capture will include).
           const vis = TG.visibility ? TG.visibility.clipToScrollAncestors(r, parent) : r;
           if (!vis || !hitIntersects(vis, region)) continue;
-          const clip = clipToPage(vis, region);
-          if (clip) out.push(clip);
+          const page = clampToPage(vis);
+          if (page) out.push(page);
           if (out.length >= MAX_HITS) return;
         }
       }
