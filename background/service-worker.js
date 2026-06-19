@@ -63,16 +63,37 @@ async function setupContextMenus() {
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab?.id) return;
   try {
+    if (await fileAccessBlocks(tab)) return;
     await ensureContentAndSend(tab.id, { type: MSG.START_REGION_SELECT });
   } catch (err) {
     console.warn('[Text Grab Extension] cannot start region select here:', err);
   }
 });
 
+/**
+ * Detect the one case where a grab silently does nothing: the tab is a local
+ * file:// page but the user has not enabled "Allow access to file URLs" for the
+ * extension. Without it Chrome blocks both the content-script injection and the
+ * viewer's reads, so nothing can run in the tab to even report the problem.
+ * When that's the situation, open a help page explaining the toggle and return
+ * true so the caller skips the (doomed) normal path.
+ */
+async function fileAccessBlocks(tab) {
+  if (!tab?.url?.startsWith('file://')) return false;
+  try {
+    if (await chrome.extension.isAllowedFileSchemeAccess()) return false;
+  } catch {
+    return false; // can't tell — let the normal path try
+  }
+  await chrome.tabs.create({ url: chrome.runtime.getURL('help/file-access.html') });
+  return true;
+}
+
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (!tab?.id) return;
   try {
     if (info.menuItemId === MENU.SELECT_REGION) {
+      if (await fileAccessBlocks(tab)) return;
       await ensureContentAndSend(tab.id, { type: MSG.START_REGION_SELECT });
     } else if (info.menuItemId === MENU.GRAB_TEXT_IMAGE) {
       await grabImage(info, tab, true);
@@ -121,6 +142,7 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
   }
   try {
     if (command === 'select-region') {
+      if (await fileAccessBlocks(tab)) return;
       await ensureContentAndSend(tab.id, { type: MSG.START_REGION_SELECT });
     }
   } catch (err) {

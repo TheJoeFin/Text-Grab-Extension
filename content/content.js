@@ -470,7 +470,12 @@
 
     let pdfBase64 = null;
     try {
-      const buf = await (await fetch(location.href)).arrayBuffer();
+      // fetch() can't read the file: scheme (it throws "Failed to fetch"), so
+      // local PDFs go through XHR, which works here once "Allow access to file
+      // URLs" is granted. http(s) PDFs stay on fetch (same-origin, cookies).
+      const buf = /^file:/i.test(location.href)
+        ? await xhrArrayBuffer(location.href)
+        : await (await fetch(location.href)).arrayBuffer();
       pdfBase64 = bytesToBase64(new Uint8Array(buf));
     } catch {
       // viewer will refetch via the URL fallback
@@ -498,6 +503,23 @@
     } catch {
       return 'document.pdf';
     }
+  }
+
+  // Read a URL as an ArrayBuffer via XHR — used for file: PDFs, which fetch()
+  // can't read (it throws "Failed to fetch"). A successful file: read reports
+  // status 0, not 200.
+  function xhrArrayBuffer(url) {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url);
+      xhr.responseType = 'arraybuffer';
+      xhr.onload = () => {
+        if (xhr.status === 0 || (xhr.status >= 200 && xhr.status < 300)) resolve(xhr.response);
+        else reject(new Error(`HTTP ${xhr.status}`));
+      };
+      xhr.onerror = () => reject(new Error('could not read the local file'));
+      xhr.send();
+    });
   }
 
   // Base64-encode bytes in chunks (btoa can't take a whole multi-MB string).

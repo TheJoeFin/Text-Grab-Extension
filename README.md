@@ -101,6 +101,13 @@ PDF with "Allow access to file URLs" enabled). Only the first 300 pages are
 rendered. Scanned/image-only PDFs have no text layer, so use Screenshot mode for
 those.
 
+**Local files.** Starting a grab on any `file://` page (a local PDF or HTML
+file) requires "Allow access to file URLs" for the extension — off by default.
+Without it Chrome blocks the extension from running in the tab, so a grab would
+otherwise silently do nothing; instead the extension opens `help/file-access.html`
+explaining the one toggle to flip. Local files are read with `XMLHttpRequest`,
+since `fetch()` does not support the `file:` scheme.
+
 ## Right-click an image
 
 Right-clicking an image adds two actions that hand the image to Text Grab:
@@ -128,6 +135,12 @@ re-enabled.
 1. Open `chrome://extensions` (or `edge://extensions`).
 2. Enable **Developer mode**.
 3. Click **Load unpacked** and select this folder.
+4. To grab a local PDF (`file://`), open the extension's **Details** and turn on
+   **Allow access to file URLs**. The extension declares a narrow `file:///*.pdf`
+   host permission so that toggle takes effect for PDFs; without the permission
+   the toggle does nothing. (Reload the extension after changing it.) Grabbing on
+   a local **HTML** file needs only the toggle — it reads the page DOM directly,
+   not over a `file://` request, so no host permission is required for that.
 
 ## Text Grab integration
 

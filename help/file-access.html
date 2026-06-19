@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Text Grab — Enable local file access</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --teal: #308e98;
+      --teal-dark: #18474c;
+      --teal-hover: #3fa5b0;
+      --page: light-dark(#f3f7f7, #0f1516);
+      --surface: light-dark(#ffffff, #18211f);
+      --surface-2: light-dark(#f7fafa, #131b1a);
+      --border: light-dark(#e2eaea, #2a3635);
+      --ink: light-dark(#13262a, #eef4f3);
+      --ink-soft: light-dark(#46595c, #b6c4c3);
+      --ink-muted: light-dark(#6b7d80, #8a9a99);
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--page); }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--ink);
+      margin: 0;
+      padding: 40px 16px 56px;
+    }
+    .wrap { max-width: 600px; margin: 0 auto; }
+
+    header.hero {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 22px;
+      margin-bottom: 26px;
+      border-bottom: 1px solid var(--border);
+    }
+    header.hero img {
+      width: 52px;
+      height: 52px;
+      flex: none;
+      filter: drop-shadow(0 2px 6px rgba(48, 142, 152, 0.35));
+    }
+    .hero-text h1 {
+      margin: 0;
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .hero-text p {
+      margin: 2px 0 0;
+      font-size: 13px;
+      color: var(--ink-muted);
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+      box-shadow: 0 1px 2px light-dark(rgba(19, 38, 42, 0.04), rgba(0, 0, 0, 0.25));
+    }
+    .card p:first-child { margin-top: 0; }
+    .card p:last-child { margin-bottom: 0; }
+
+    ol { margin: 14px 0; padding-left: 22px; }
+    ol li { margin: 8px 0; }
+
+    code {
+      font-family: 'Cascadia Code', ui-monospace, 'Consolas', monospace;
+      font-size: 12px;
+      padding: 1px 6px;
+      border-radius: 5px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+    }
+
+    .actions { margin-top: 18px; }
+    button {
+      font: inherit;
+      font-weight: 600;
+      color: #ffffff;
+      background: var(--teal);
+      border: 0;
+      border-radius: 9px;
+      padding: 10px 18px;
+      cursor: pointer;
+      transition: background 0.12s ease;
+    }
+    button:hover { background: var(--teal-hover); }
+    button:focus-visible {
+      outline: 2px solid var(--teal-hover);
+      outline-offset: 2px;
+    }
+
+    .note {
+      margin-top: 16px;
+      font-size: 12.5px;
+      color: var(--ink-muted);
+    }
+
+    footer {
+      margin-top: 26px;
+      text-align: center;
+      font-size: 12.5px;
+      color: var(--ink-muted);
+    }
+    footer a { color: var(--teal); font-weight: 600; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <img src="../icons/icon128.png" alt="Text Grab" />
+      <div class="hero-text">
+        <h1>Enable access to local files</h1>
+        <p>Text Grab needs one permission to read PDFs and pages opened from your computer</p>
+      </div>
+    </header>
+
+    <main class="card">
+      <p>
+        You started Text Grab on a <code>file://</code> page (a PDF or web page
+        opened from your computer). Chrome blocks extensions from reading local
+        files unless you turn on a per-extension permission — so nothing happened.
+      </p>
+      <p>To allow it:</p>
+      <ol>
+        <li>Open the extension's details page (the button below opens it).</li>
+        <li>Turn on <strong>Allow access to file URLs</strong>.</li>
+        <li>Return to your local PDF or page and start Text Grab again.</li>
+      </ol>
+
+      <div class="actions">
+        <button id="open-settings" type="button">Open extension settings</button>
+      </div>
+
+      <p class="note" id="fallback" hidden>
+        If the button doesn't work, paste this into your address bar:
+        <code id="settings-url"></code>
+      </p>
+    </main>
+
+    <footer>
+      Get the Text Grab app at <a href="https://www.textgrab.net" target="_blank" rel="noopener">textgrab.net</a>
+    </footer>
+  </div>
+
+  <script src="file-access.js"></script>
+</body>
+</html>

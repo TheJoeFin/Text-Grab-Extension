@@ -12,6 +12,10 @@
     "clipboardWrite",
     "downloads"
   ],
+  "host_permissions": [
+    "file:///*.pdf",
+    "file:///*.PDF"
+  ],
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"

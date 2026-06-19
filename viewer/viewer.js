@@ -97,9 +97,32 @@ async function loadBytes() {
 }
 
 async function fetchBytes(url) {
+  // fetch() does not support the file: scheme — it rejects with "Failed to
+  // fetch" — so read local PDFs with XHR instead, which works in this extension
+  // page once the user has granted "Allow access to file URLs".
+  if (/^file:/i.test(url)) return xhrBytes(url);
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return new Uint8Array(await res.arrayBuffer());
+}
+
+function xhrBytes(url) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url);
+    xhr.responseType = 'arraybuffer';
+    xhr.onload = () => {
+      // A successful file: read reports status 0, not 200.
+      if (xhr.status === 0 || (xhr.status >= 200 && xhr.status < 300)) {
+        resolve(new Uint8Array(xhr.response));
+      } else {
+        reject(new Error(`HTTP ${xhr.status}`));
+      }
+    };
+    xhr.onerror = () =>
+      reject(new Error('could not read the local file (is "Allow access to file URLs" on?)'));
+    xhr.send();
+  });
 }
 
 // ---- rendering ------------------------------------------------------------
