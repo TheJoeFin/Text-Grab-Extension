@@ -1,5 +1,7 @@
 # Text Grab Extension
 
+![Text Grab Extension](images/MarqueePromo.png)
+
 A Chromium (Manifest V3) extension for improved copying of web content, with
 handoff to the [Text Grab](https://github.com/TheJoeFin/Text-Grab) Windows app.
 
