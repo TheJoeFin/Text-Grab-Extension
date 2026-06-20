@@ -213,6 +213,12 @@
   padding: 6px 8px;
 }
 
+.tg-region-toolbar button.tg-scroll-to {
+  padding: 6px 8px;
+  font-size: 16px;
+  line-height: 1;
+}
+
 /* Table-mode "Copy table / Copy list" hint pinned to each table or list on the
    page. Sits above the dim shade so it stays visible and clickable; one click
    copies the whole structure without dragging a region. */
@@ -338,6 +344,33 @@
 
     const toolbar = document.createElement('div');
     toolbar.className = 'tg-region-toolbar';
+
+    // "Scroll to" — bring the top of the region into the middle of the viewport.
+    // Handy when the region (and so this toolbar) has been scrolled off-screen.
+    const scrollBtn = document.createElement('button');
+    scrollBtn.type = 'button';
+    scrollBtn.className = 'tg-scroll-to';
+    scrollBtn.title = 'Scroll the region into view';
+    // Arrow direction (↑/↓) is set in layout() based on where the region sits.
+    let scrolledToBottom = false;
+    scrollBtn.addEventListener('click', () => {
+      const maxScroll = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      let target;
+      if (rect.height > window.innerHeight) {
+        // Region is taller than the viewport: alternate between framing its top
+        // and its bottom so repeated clicks walk between both ends.
+        target = scrolledToBottom ? rect.y + rect.height - window.innerHeight : rect.y;
+        scrolledToBottom = !scrolledToBottom;
+      } else {
+        // Fits on screen: center the top edge in the viewport.
+        target = rect.y - window.innerHeight / 2;
+      }
+      window.scrollTo({ top: Math.max(0, Math.min(target, maxScroll)), behavior: 'smooth' });
+    });
+    const scrollDivider = document.createElement('div');
+    scrollDivider.className = 'divider';
+    toolbar.append(scrollBtn, scrollDivider);
+
     const modeDefs = [
       // Screenshot always hands off to the Text Grab desktop app, so it is only
       // offered on Windows; macOS/Linux keep the clipboard-only modes.
@@ -460,13 +493,34 @@
       sizeEl.textContent = `${Math.round(rect.width)} x ${Math.round(rect.height)}`;
       sizeEl.style.display = rect.y < 30 ? 'none' : '';
 
-      // Toolbar below the rectangle, or above when there is no room.
+      // Toolbar normally sits just below the rectangle, but it must stay inside
+      // the visible viewport so its buttons remain clickable. As the region's
+      // bottom approaches and passes the viewport's bottom edge, the toolbar
+      // slides up and sticks to that edge — rising smoothly from the bottom
+      // rather than snapping above the region in the in-between band.
       const toolbarHeight = 44;
-      const below = rect.y + rect.height + 8;
-      toolbar.style.top =
-        below + toolbarHeight <= docHeight
-          ? `${below}px`
-          : `${Math.max(8, rect.y - toolbarHeight - 8)}px`;
+      const gap = 8;
+      const viewportTop = window.scrollY;
+      const viewportBottom = window.scrollY + window.innerHeight;
+      const regionBottom = rect.y + rect.height;
+
+      // The "scroll to" button only earns its place when part of the region is
+      // off-screen — otherwise it is redundant with what's already visible.
+      const regionOutOfView = rect.y < viewportTop || regionBottom > viewportBottom;
+      scrollBtn.classList.toggle('hidden', !regionOutOfView);
+      scrollDivider.classList.toggle('hidden', !regionOutOfView);
+      // Point the way to the off-screen region: up when it's above the viewport,
+      // down when below. When the region spans the whole viewport, the arrow
+      // tracks the next alternating jump (top first, then bottom).
+      if (rect.y < viewportTop && regionBottom > viewportBottom) {
+        scrollBtn.textContent = scrolledToBottom ? '↓' : '↑';
+      } else {
+        scrollBtn.textContent = rect.y < viewportTop ? '↑' : '↓';
+      }
+
+      const maxTop = viewportBottom - toolbarHeight - gap;
+      const toolbarTop = Math.max(viewportTop + gap, Math.min(regionBottom + gap, maxTop));
+      toolbar.style.top = `${toolbarTop}px`;
       const tbWidth = toolbar.offsetWidth || 330;
       toolbar.style.left = `${Math.max(8, Math.min(rect.x, docWidth - tbWidth - 8))}px`;
 
@@ -1170,6 +1224,12 @@
     };
     window.addEventListener('resize', session.onResize);
 
+    // The rect and hints are page-anchored, but the toolbar is pinned within the
+    // viewport (see layout) so its buttons stay reachable when the region runs
+    // off the bottom of the screen — re-place it as the page scrolls.
+    session.onScroll = () => layout();
+    window.addEventListener('scroll', session.onScroll, { passive: true });
+
     sizeShade();
     setSend(session.sendToTextGrab);
     setMode(session.mode);
@@ -1181,6 +1241,7 @@
     session.cleanup?.();
     window.removeEventListener('keydown', session.onKeyDown, true);
     if (session.onResize) window.removeEventListener('resize', session.onResize);
+    if (session.onScroll) window.removeEventListener('scroll', session.onScroll);
     session.host.remove();
     session = null;
   }
